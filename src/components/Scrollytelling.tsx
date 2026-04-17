@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 gsap.registerPlugin(ScrollTrigger);
 
-const FRAME_COUNT = 192;
+const FRAME_COUNT = 82;
 const INITIAL_LOAD_COUNT = 15; // Only wait for the first 15 frames to start
 const ZOOM_FACTOR = 1.0;
 
@@ -21,38 +21,29 @@ export default function Scrollytelling() {
   const [loadedFrames, setLoadedFrames] = useState(0);
   const [images, setImages] = useState<HTMLImageElement[]>([]);
 
-  // Preload images with a sequential worker pool to prevent network/CPU saturation (fixes scrolling jitters)
+  // Restore the original simple image loader exactly as requested, mapped to frames2
   useEffect(() => {
     let loaded = 0;
-    const imgArray: HTMLImageElement[] = new Array(FRAME_COUNT + 1);
+    const imgArray: HTMLImageElement[] = [];
 
-    // Load 3 frames concurrently to balance speed and CPU load
-    const concurrentWorkers = 3;
-    let currentIndex = 1;
-
-    const loadNextFrame = () => {
-      if (currentIndex > FRAME_COUNT) return;
-      const indexToLoad = currentIndex++;
-      
+    // Loop from 0 to 81 to exactly match frames2 naming (000.png to 081.png)
+    for (let i = 0; i < FRAME_COUNT; i++) {
       const img = new Image();
-      const paddedIndex = String(indexToLoad).padStart(3, "0");
-      img.src = `/frames/${paddedIndex}.jpg?v=2`;
+      const paddedIndex = String(i).padStart(3, "0");
+      img.src = `/frames2/43c621d3-c21a-45d4-8db7-c00b4f5625b1_${paddedIndex}.png`;
       
       img.onload = () => {
         loaded++;
-        imgArray[indexToLoad] = img;
         setLoadedFrames(loaded);
-        // Chain the next frame
-        loadNextFrame();
       };
+      
+      // If a file is missing, keep the loading bar moving so it doesn't get stuck at 0%
       img.onerror = () => {
-        loadNextFrame(); // keep queue moving even if one fails
+        loaded++;
+        setLoadedFrames(loaded);
       };
-    };
-
-    // Start background workers
-    for (let i = 0; i < concurrentWorkers; i++) {
-      loadNextFrame();
+      
+      imgArray.push(img);
     }
     
     setImages(imgArray);
