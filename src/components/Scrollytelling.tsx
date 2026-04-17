@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 gsap.registerPlugin(ScrollTrigger);
 
-const FRAME_COUNT = 240;
+const FRAME_COUNT = 192;
 const INITIAL_LOAD_COUNT = 15; // Only wait for the first 15 frames to start
 const ZOOM_FACTOR = 1.0;
 
@@ -36,7 +36,7 @@ export default function Scrollytelling() {
       
       const img = new Image();
       const paddedIndex = String(indexToLoad).padStart(3, "0");
-      img.src = `/ezgif-frame-${paddedIndex}.jpg?v=2`;
+      img.src = `/frames/${paddedIndex}.jpg?v=3`;
       
       img.onload = () => {
         loaded++;
