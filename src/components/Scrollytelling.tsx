@@ -21,26 +21,58 @@ export default function Scrollytelling() {
   const [loadedFrames, setLoadedFrames] = useState(0);
   const [images, setImages] = useState<HTMLImageElement[]>([]);
 
-  // Preload images
+  // Preload images with a sequential worker pool to prevent network/CPU saturation (fixes scrolling jitters)
   useEffect(() => {
     let loaded = 0;
-    const imgArray: HTMLImageElement[] = [];
+    const imgArray: HTMLImageElement[] = new Array(FRAME_COUNT + 1);
 
-    for (let i = 1; i <= FRAME_COUNT; i++) {
+    // Load 3 frames concurrently to balance speed and CPU load
+    const concurrentWorkers = 3;
+    let currentIndex = 1;
+
+    const loadNextFrame = () => {
+      if (currentIndex > FRAME_COUNT) return;
+      const indexToLoad = currentIndex++;
+      
       const img = new Image();
-      const paddedIndex = String(i).padStart(3, "0");
+      const paddedIndex = String(indexToLoad).padStart(3, "0");
       img.src = `/ezgif-frame-${paddedIndex}.jpg?v=2`;
       
       img.onload = () => {
         loaded++;
+        imgArray[indexToLoad] = img;
         setLoadedFrames(loaded);
+        // Chain the next frame
+        loadNextFrame();
       };
-      
-      imgArray.push(img);
+      img.onerror = () => {
+        loadNextFrame(); // keep queue moving even if one fails
+      };
+    };
+
+    // Start background workers
+    for (let i = 0; i < concurrentWorkers; i++) {
+      loadNextFrame();
     }
     
     setImages(imgArray);
   }, []);
+
+  // Helper to resize canvas only when window resizes
+  const resizeCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    ctx.scale(dpr, dpr);
+    
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+  };
 
   // Draw frame on canvas with DPR support
   const drawFrame = (index: number) => {
@@ -50,12 +82,8 @@ export default function Scrollytelling() {
     if (!ctx) return;
 
     const img = images[index];
-    const dpr = window.devicePixelRatio || 1;
     
-    canvas.width = window.innerWidth * dpr;
-    canvas.height = window.innerHeight * dpr;
-    ctx.scale(dpr, dpr);
-    
+    // Ensure smoothing is maintained
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
 
@@ -92,9 +120,12 @@ export default function Scrollytelling() {
     if (loadedFrames < INITIAL_LOAD_COUNT || initialized.current) return;
     initialized.current = true;
 
+    // Initialize canvas dimensions
+    resizeCanvas();
     drawFrame(0);
 
     const handleResize = () => {
+      resizeCanvas();
       ScrollTrigger.refresh();
       drawFrame(Math.round(frameObj.frame));
     };
@@ -189,18 +220,18 @@ export default function Scrollytelling() {
 
   return (
     <div ref={containerRef} className="relative w-full bg-black">
-      {/* Loading Overlay */}
+      {/* Aesthetic Cinematic Loading Overlay */}
       {isLoading && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black text-white">
-          <div className="text-4xl font-bold tracking-tighter mb-4">
-            LOADING SCENE
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-gradient-to-br from-[#020b17] via-black to-[#051c33] text-white animate-gradient-breath bg-[length:200%_200%] transition-opacity duration-1000">
+          <div className="text-5xl md:text-7xl font-display italic tracking-tight mb-8 drop-shadow-[0_0_25px_rgba(250,240,202,0.4)] text-[#FAF0CA]">
+            Sarvesh Portfolio
           </div>
-          <div className="text-2xl opacity-70">
+          <div className="text-lg md:text-xl opacity-80 font-light tracking-[0.2em] text-[#FAF0CA]/80">
             {loadPercentage}%
           </div>
-          <div className="w-64 h-1 bg-white/20 mt-6 rounded-full overflow-hidden">
+          <div className="w-64 md:w-96 h-1 bg-white/10 mt-8 rounded-full overflow-hidden shadow-[0_0_20px_rgba(250,240,202,0.15)]">
             <div 
-              className="h-full bg-[#FAF0CA] transition-all duration-300 ease-out"
+              className="h-full bg-[#FAF0CA] transition-all duration-300 ease-out shadow-[0_0_15px_rgba(250,240,202,0.9)]"
               style={{ width: `${loadPercentage}%` }}
             />
           </div>
@@ -231,12 +262,12 @@ export default function Scrollytelling() {
           <div id="home" className="min-h-[80vh] flex items-end justify-center pb-20 mb-[25vh]">
             <div 
               ref={el => { if (el) textSectionsRef.current[0] = el; }}
-              className="px-8 py-6 text-center max-w-5xl transform-gpu"
+              className="px-6 md:px-8 py-6 text-center max-w-5xl transform-gpu"
             >
-              <h1 className="text-[#FAF0CA] text-7xl md:text-[8rem] font-display italic leading-none tracking-tight mb-4 drop-shadow-[0_4px_24px_rgba(0,0,0,0.9)]">
+              <h1 className="text-[#FAF0CA] text-6xl md:text-[8rem] font-display italic leading-none tracking-tight mb-4 drop-shadow-[0_4px_24px_rgba(0,0,0,0.9)]">
                 Welcome to my portfolio
               </h1>
-              <p className="text-[#FAF0CA]/90 text-xl md:text-3xl font-display italic tracking-wide font-medium drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]">
+              <p className="text-[#FAF0CA]/90 text-lg md:text-3xl font-display italic tracking-wide font-medium drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]">
                 Aspiring Software Engineer & Cybersecurity Enthusiast
               </p>
             </div>
@@ -246,17 +277,17 @@ export default function Scrollytelling() {
           <div id="about" className="min-h-screen flex items-center justify-start px-6 md:px-24 mb-[25vh]">
             <div 
               ref={el => { if (el) textSectionsRef.current[1] = el; }}
-              className="px-10 py-10 rounded-3xl shadow-2xl border border-white/20 max-w-2xl transform-gpu relative overflow-hidden transition-all duration-500 hover:border-[#FAF0CA]/60 hover:shadow-[0_0_40px_rgba(250,240,202,0.4)]"
+              className="px-6 py-8 md:px-10 md:py-10 rounded-3xl shadow-2xl border border-white/20 max-w-2xl transform-gpu relative overflow-hidden transition-all duration-500 hover:border-[#FAF0CA]/60 hover:shadow-[0_0_40px_rgba(250,240,202,0.4)]"
               style={{ backgroundColor: 'rgba(0, 0, 0, 0.45)', backdropFilter: 'blur(24px)' }}
             >
               {/* Subtle inner glow to maintain the coastal warmth */}
               <div className="absolute inset-0 bg-gradient-to-br from-[#FAF0CA]/5 to-transparent pointer-events-none" />
               
               <div className="relative z-10">
-                <h2 className="text-[#FAF0CA] text-5xl md:text-6xl font-display italic tracking-tight mb-6 drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]">
+                <h2 className="text-[#FAF0CA] text-4xl md:text-6xl font-display italic tracking-tight mb-6 drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]">
                   About Me
                 </h2>
-              <div className="text-[#FAF0CA]/90 text-lg md:text-xl leading-relaxed font-light drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] space-y-4">
+              <div className="text-[#FAF0CA]/90 text-base md:text-xl leading-relaxed font-light drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] space-y-3 md:space-y-4">
                 <p>
                   I am an aspiring Software Engineer with a passion for building secure, scalable, and data-driven systems. Through my education and hands-on projects, I've gained strong expertise in cyber threat intelligence, malware analysis, and incident response.
                 </p>
@@ -275,50 +306,50 @@ export default function Scrollytelling() {
           <div id="projects" ref={projectsContainerRef} className="h-screen w-full flex items-center overflow-hidden mb-[25vh]">
              <div ref={projectsWrapperRef} className="flex flex-row gap-16 px-12 md:px-24 w-max h-[70vh] items-center">
                 {/* Horizontal Scroll Title */}
-                <div className="w-[80vw] md:w-[40vw] flex items-center justify-start flex-shrink-0">
+                <div className="w-[90vw] md:w-[40vw] flex items-center justify-start flex-shrink-0">
                   <h2 className="text-[#FAF0CA] text-6xl md:text-8xl font-display italic tracking-tight drop-shadow-[0_4px_24px_rgba(0,0,0,0.9)] leading-tight">
                     Featured<br/>Works
                   </h2>
                 </div>
 
                 {/* Project Cards */}
-                <div className="w-[85vw] md:w-[45vw] h-full flex-shrink-0 rounded-3xl shadow-2xl border border-white/20 p-12 flex flex-col justify-end relative overflow-hidden transition-all duration-500 hover:border-[#FAF0CA]/60 hover:shadow-[0_0_40px_rgba(250,240,202,0.4)]"
+                <div className="w-[90vw] md:w-[45vw] h-full flex-shrink-0 rounded-3xl shadow-2xl border border-white/20 p-8 md:p-12 flex flex-col justify-end relative overflow-hidden transition-all duration-500 hover:border-[#FAF0CA]/60 hover:shadow-[0_0_40px_rgba(250,240,202,0.4)]"
                      style={{ backgroundColor: 'rgba(250, 240, 202, 0.15)', backdropFilter: 'blur(24px)' }}>
-                   <ShieldAlert size={160} className="absolute top-10 right-10 text-[#0f4d92]/30 animate-float" />
-                   <Search size={80} className="absolute top-40 right-48 text-[#0f4d92]/20 animate-float-delayed" />
+                   <ShieldAlert className="absolute top-6 right-6 md:top-10 md:right-10 text-[#0f4d92]/30 animate-float w-24 h-24 md:w-40 md:h-40" />
+                   <Search className="absolute top-28 right-24 md:top-40 md:right-48 text-[#0f4d92]/20 animate-float-delayed w-16 h-16 md:w-20 md:h-20" />
                    <div className="relative z-10">
-                     <h3 className="text-[#0f4d92] text-4xl md:text-5xl font-display italic mb-4 drop-shadow-[0_0_15px_rgba(250,240,202,0.9)]">Phishing Attack Investigation</h3>
-                     <p className="text-[#FAF0CA]/90 text-lg font-light leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">Analyzed 30+ phishing samples using Wireshark, VirusTotal, and URLScan to identify malicious domains and extract key indicators, strengthening investigative skills for real-world cyber threat operations.</p>
+                     <h3 className="text-[#0f4d92] text-3xl md:text-5xl font-display italic mb-4 drop-shadow-[0_0_15px_rgba(250,240,202,0.9)]">Phishing Attack Investigation</h3>
+                     <p className="text-[#FAF0CA]/90 text-base md:text-lg font-light leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">Analyzed 30+ phishing samples using Wireshark, VirusTotal, and URLScan to identify malicious domains and extract key indicators, strengthening investigative skills for real-world cyber threat operations.</p>
                    </div>
                 </div>
 
-                <div className="w-[85vw] md:w-[45vw] h-full flex-shrink-0 rounded-3xl shadow-2xl border border-white/20 p-12 flex flex-col justify-end relative overflow-hidden transition-all duration-500 hover:border-[#FAF0CA]/60 hover:shadow-[0_0_40px_rgba(250,240,202,0.4)]"
+                <div className="w-[90vw] md:w-[45vw] h-full flex-shrink-0 rounded-3xl shadow-2xl border border-white/20 p-8 md:p-12 flex flex-col justify-end relative overflow-hidden transition-all duration-500 hover:border-[#FAF0CA]/60 hover:shadow-[0_0_40px_rgba(250,240,202,0.4)]"
                      style={{ backgroundColor: 'rgba(250, 240, 202, 0.15)', backdropFilter: 'blur(24px)' }}>
-                   <Bug size={140} className="absolute top-12 right-12 text-[#0f4d92]/30 animate-float-delayed" />
-                   <Activity size={100} className="absolute top-40 right-40 text-[#0f4d92]/20 animate-float" />
+                   <Bug className="absolute top-8 right-8 md:top-12 md:right-12 text-[#0f4d92]/30 animate-float-delayed w-20 h-20 md:w-36 md:h-36" />
+                   <Activity className="absolute top-28 right-24 md:top-40 md:right-40 text-[#0f4d92]/20 animate-float w-16 h-16 md:w-24 md:h-24" />
                    <div className="relative z-10">
-                     <h3 className="text-[#0f4d92] text-4xl md:text-5xl font-display italic mb-4 drop-shadow-[0_0_15px_rgba(250,240,202,0.9)]">Malware Analysis & Containment</h3>
-                     <p className="text-[#FAF0CA]/90 text-lg font-light leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">Performed static and dynamic analysis on malware samples using PEStudio, ProcMon, and Any.Run to reveal infection vectors. Reduced analysis time by 20% by automating behavioral observation workflows.</p>
+                     <h3 className="text-[#0f4d92] text-3xl md:text-5xl font-display italic mb-4 drop-shadow-[0_0_15px_rgba(250,240,202,0.9)]">Malware Analysis & Containment</h3>
+                     <p className="text-[#FAF0CA]/90 text-base md:text-lg font-light leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">Performed static and dynamic analysis on malware samples using PEStudio, ProcMon, and Any.Run to reveal infection vectors. Reduced analysis time by 20% by automating behavioral observation workflows.</p>
                    </div>
                 </div>
 
-                <div className="w-[85vw] md:w-[45vw] h-full flex-shrink-0 rounded-3xl shadow-2xl border border-white/20 p-12 flex flex-col justify-end relative overflow-hidden transition-all duration-500 hover:border-[#FAF0CA]/60 hover:shadow-[0_0_40px_rgba(250,240,202,0.4)]"
+                <div className="w-[90vw] md:w-[45vw] h-full flex-shrink-0 rounded-3xl shadow-2xl border border-white/20 p-8 md:p-12 flex flex-col justify-end relative overflow-hidden transition-all duration-500 hover:border-[#FAF0CA]/60 hover:shadow-[0_0_40px_rgba(250,240,202,0.4)]"
                      style={{ backgroundColor: 'rgba(250, 240, 202, 0.15)', backdropFilter: 'blur(24px)' }}>
-                   <Network size={160} className="absolute top-10 right-10 text-[#0f4d92]/30 animate-float" />
-                   <Zap size={90} className="absolute top-44 right-52 text-[#0f4d92]/20 animate-float-delayed" />
+                   <Network className="absolute top-6 right-6 md:top-10 md:right-10 text-[#0f4d92]/30 animate-float w-24 h-24 md:w-40 md:h-40" />
+                   <Zap className="absolute top-32 right-32 md:top-44 md:right-52 text-[#0f4d92]/20 animate-float-delayed w-16 h-16 md:w-24 md:h-24" />
                    <div className="relative z-10">
-                     <h3 className="text-[#0f4d92] text-4xl md:text-5xl font-display italic mb-4 drop-shadow-[0_0_15px_rgba(250,240,202,0.9)]">DDoS Detection & Response</h3>
-                     <p className="text-[#FAF0CA]/90 text-lg font-light leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">Simulated DDoS attacks to evaluate network resilience and detect anomalies using Wireshark and Nmap. Applied mitigation strategies with Fail2Ban and Snort to reduce downtime in test scenarios.</p>
+                     <h3 className="text-[#0f4d92] text-3xl md:text-5xl font-display italic mb-4 drop-shadow-[0_0_15px_rgba(250,240,202,0.9)]">DDoS Detection & Response</h3>
+                     <p className="text-[#FAF0CA]/90 text-base md:text-lg font-light leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">Simulated DDoS attacks to evaluate network resilience and detect anomalies using Wireshark and Nmap. Applied mitigation strategies with Fail2Ban and Snort to reduce downtime in test scenarios.</p>
                    </div>
                 </div>
 
-                <div className="w-[85vw] md:w-[45vw] h-full flex-shrink-0 rounded-3xl shadow-2xl border border-white/20 p-12 flex flex-col justify-end relative overflow-hidden transition-all duration-500 hover:border-[#FAF0CA]/60 hover:shadow-[0_0_40px_rgba(250,240,202,0.4)]"
+                <div className="w-[90vw] md:w-[45vw] h-full flex-shrink-0 rounded-3xl shadow-2xl border border-white/20 p-8 md:p-12 flex flex-col justify-end relative overflow-hidden transition-all duration-500 hover:border-[#FAF0CA]/60 hover:shadow-[0_0_40px_rgba(250,240,202,0.4)]"
                      style={{ backgroundColor: 'rgba(250, 240, 202, 0.15)', backdropFilter: 'blur(24px)' }}>
-                   <Code size={180} className="absolute top-8 right-12 text-[#0f4d92]/30 animate-float-delayed" />
-                   <Trophy size={80} className="absolute top-40 right-48 text-[#0f4d92]/20 animate-float" />
+                   <Code className="absolute top-4 right-8 md:top-8 md:right-12 text-[#0f4d92]/30 animate-float-delayed w-28 h-28 md:w-48 md:h-48" />
+                   <Trophy className="absolute top-28 right-28 md:top-40 md:right-48 text-[#0f4d92]/20 animate-float w-16 h-16 md:w-20 md:h-20" />
                    <div className="relative z-10">
-                     <h3 className="text-[#0f4d92] text-4xl md:text-5xl font-display italic mb-4 drop-shadow-[0_0_15px_rgba(250,240,202,0.9)]">The Big Code 2026</h3>
-                     <p className="text-[#FAF0CA]/90 text-lg font-light leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">Competed in Google India's national coding challenge, achieving a rank in the top 15,000. This experience honed my efficiency, edge-case thinking, and structured problem-solving under strict time constraints.</p>
+                     <h3 className="text-[#0f4d92] text-3xl md:text-5xl font-display italic mb-4 drop-shadow-[0_0_15px_rgba(250,240,202,0.9)]">The Big Code 2026</h3>
+                     <p className="text-[#FAF0CA]/90 text-base md:text-lg font-light leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">Competed in Google India's national coding challenge, achieving a rank in the top 15,000. This experience honed my efficiency, edge-case thinking, and structured problem-solving under strict time constraints.</p>
                    </div>
                 </div>
 
@@ -329,13 +360,13 @@ export default function Scrollytelling() {
           <div id="contact" className="min-h-screen flex items-center justify-center px-6">
             <div 
               ref={el => { if (el) textSectionsRef.current[2] = el; }}
-              className="px-14 py-12 rounded-3xl shadow-2xl border border-white/20 text-center max-w-2xl transform-gpu flex flex-col items-center transition-all duration-500 hover:border-[#FAF0CA]/60 hover:shadow-[0_0_40px_rgba(250,240,202,0.4)]"
+              className="px-8 py-10 md:px-14 md:py-12 rounded-3xl shadow-2xl border border-white/20 text-center max-w-2xl transform-gpu flex flex-col items-center transition-all duration-500 hover:border-[#FAF0CA]/60 hover:shadow-[0_0_40px_rgba(250,240,202,0.4)]"
               style={{ backgroundColor: 'rgba(250, 240, 202, 0.15)', backdropFilter: 'blur(24px)' }}
             >
-              <h2 className="text-[#0f4d92] text-6xl md:text-7xl font-display italic tracking-tight mb-4 drop-shadow-[0_0_15px_rgba(250,240,202,0.9)]">
+              <h2 className="text-[#0f4d92] text-5xl md:text-7xl font-display italic tracking-tight mb-4 drop-shadow-[0_0_15px_rgba(250,240,202,0.9)]">
                 Let's Build Together
               </h2>
-              <p className="text-[#FAF0CA]/80 text-xl font-light mb-10 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+              <p className="text-[#FAF0CA]/80 text-lg md:text-xl font-light mb-10 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
                 Ready to create something secure and beautiful? Let's connect.
               </p>
               

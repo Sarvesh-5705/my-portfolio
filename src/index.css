@@ -141,3 +141,12 @@
 .animate-float-delayed {
   animation: float 8s ease-in-out infinite 2s;
 }
+
+@keyframes gradient-breath {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.animate-gradient-breath {
+  animation: gradient-breath 8s ease-in-out infinite;
+}

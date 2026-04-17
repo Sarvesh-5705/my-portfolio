@@ -57,14 +57,14 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 w-full max-w-[1400px] mx-auto px-10 py-10 flex flex-row justify-between items-center">
-      <div className="flex items-center">
+    <nav className="fixed top-0 left-0 right-0 z-50 w-full max-w-[1400px] mx-auto px-6 py-6 md:px-10 md:py-10 flex flex-row justify-between items-center pointer-events-none">
+      <div className="flex items-center pointer-events-auto">
         <span className="text-[2rem] tracking-[-0.04em] font-display text-foreground leading-none drop-shadow-md">
           Sarvesh
         </span>
       </div>
 
-      <div className="hidden md:flex items-center gap-12">
+      <div className="hidden md:flex items-center gap-12 pointer-events-auto">
         {navLinks.map((link) => {
           const isActive = activeSection === link.href;
           return (
