@@ -20,6 +20,13 @@ export default function Scrollytelling() {
   
   const [loadedFrames, setLoadedFrames] = useState(0);
   const [images, setImages] = useState<HTMLImageElement[]>([]);
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    if (loadedFrames >= INITIAL_LOAD_COUNT && !isReady) {
+      setIsReady(true);
+    }
+  }, [loadedFrames, isReady]);
 
   // Preload images with a sequential worker pool to prevent network/CPU saturation (fixes scrolling jitters)
   useEffect(() => {
@@ -116,9 +123,7 @@ export default function Scrollytelling() {
 
   // Setup ScrollTrigger for animation and sections
   useEffect(() => {
-    // Start as soon as we have our initial batch, and only initialize ONCE
-    if (loadedFrames < INITIAL_LOAD_COUNT || initialized.current) return;
-    initialized.current = true;
+    if (!isReady) return;
 
     // Initialize canvas dimensions
     resizeCanvas();
@@ -213,9 +218,9 @@ export default function Scrollytelling() {
       sectionTriggers.forEach(t => t?.kill());
       hScrollTrigger?.kill();
     };
-  }, [loadedFrames]);
+  }, [isReady]);
 
-  const isLoading = loadedFrames < INITIAL_LOAD_COUNT;
+  const isLoading = !isReady;
   const loadPercentage = Math.min(100, Math.round((loadedFrames / INITIAL_LOAD_COUNT) * 100));
 
   return (
