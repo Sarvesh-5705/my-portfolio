@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 gsap.registerPlugin(ScrollTrigger);
 
 const FRAME_COUNT = 240;
+const INITIAL_LOAD_COUNT = 15; // Only wait for the first 15 frames to start
 const ZOOM_FACTOR = 1.0;
 
 export default function Scrollytelling() {
@@ -15,6 +16,7 @@ export default function Scrollytelling() {
   const textSectionsRef = useRef<HTMLDivElement[]>([]);
   const projectsContainerRef = useRef<HTMLDivElement>(null);
   const projectsWrapperRef = useRef<HTMLDivElement>(null);
+  const initialized = useRef(false);
   
   const [loadedFrames, setLoadedFrames] = useState(0);
   const [images, setImages] = useState<HTMLImageElement[]>([]);
@@ -86,7 +88,9 @@ export default function Scrollytelling() {
 
   // Setup ScrollTrigger for animation and sections
   useEffect(() => {
-    if (loadedFrames !== FRAME_COUNT) return;
+    // Start as soon as we have our initial batch, and only initialize ONCE
+    if (loadedFrames < INITIAL_LOAD_COUNT || initialized.current) return;
+    initialized.current = true;
 
     drawFrame(0);
 
@@ -180,8 +184,8 @@ export default function Scrollytelling() {
     };
   }, [loadedFrames]);
 
-  const isLoading = loadedFrames < FRAME_COUNT;
-  const loadPercentage = Math.round((loadedFrames / FRAME_COUNT) * 100);
+  const isLoading = loadedFrames < INITIAL_LOAD_COUNT;
+  const loadPercentage = Math.min(100, Math.round((loadedFrames / INITIAL_LOAD_COUNT) * 100));
 
   return (
     <div ref={containerRef} className="relative w-full bg-black">
