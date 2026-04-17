@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 gsap.registerPlugin(ScrollTrigger);
 
-const FRAME_COUNT = 240;
+const FRAME_COUNT = 192;
 const INITIAL_LOAD_COUNT = 15; // Only wait for the first 15 frames to start
 const ZOOM_FACTOR = 1.0;
 
@@ -20,13 +20,6 @@ export default function Scrollytelling() {
   
   const [loadedFrames, setLoadedFrames] = useState(0);
   const [images, setImages] = useState<HTMLImageElement[]>([]);
-  const [isReady, setIsReady] = useState(false);
-
-  useEffect(() => {
-    if (loadedFrames >= INITIAL_LOAD_COUNT && !isReady) {
-      setIsReady(true);
-    }
-  }, [loadedFrames, isReady]);
 
   // Preload images with a sequential worker pool to prevent network/CPU saturation (fixes scrolling jitters)
   useEffect(() => {
@@ -43,11 +36,11 @@ export default function Scrollytelling() {
       
       const img = new Image();
       const paddedIndex = String(indexToLoad).padStart(3, "0");
-      img.src = `/ezgif-frame-${paddedIndex}.jpg?v=2`;
+      img.src = `/frames/${paddedIndex}.jpg?v=2`;
       
       img.onload = () => {
         loaded++;
-        imgArray[indexToLoad - 1] = img; // Map 1-indexed filenames to 0-indexed array for GSAP
+        imgArray[indexToLoad] = img;
         setLoadedFrames(loaded);
         // Chain the next frame
         loadNextFrame();
@@ -123,7 +116,9 @@ export default function Scrollytelling() {
 
   // Setup ScrollTrigger for animation and sections
   useEffect(() => {
-    if (!isReady) return;
+    // Start as soon as we have our initial batch, and only initialize ONCE
+    if (loadedFrames < INITIAL_LOAD_COUNT || initialized.current) return;
+    initialized.current = true;
 
     // Initialize canvas dimensions
     resizeCanvas();
@@ -218,9 +213,9 @@ export default function Scrollytelling() {
       sectionTriggers.forEach(t => t?.kill());
       hScrollTrigger?.kill();
     };
-  }, [isReady]);
+  }, [loadedFrames]);
 
-  const isLoading = !isReady;
+  const isLoading = loadedFrames < INITIAL_LOAD_COUNT;
   const loadPercentage = Math.min(100, Math.round((loadedFrames / INITIAL_LOAD_COUNT) * 100));
 
   return (
